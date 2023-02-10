@@ -2,9 +2,42 @@ var SerialPort = require('serialport');
 var xbee_api = require('xbee-api');
 var C = xbee_api.constants;
 var mac_buzzer_64 = "0013a20041c34b12"
-var mac_buzzer_16 = "fd40"
+var mac_buzzer1_16 = "fd40"
+var mac_buzzer2_16 = "5ff7"
 var buzzer_command_status = 0x04
 var broadcast = "FFFFFFFFFFFFFFFF"
+var topic = "test_topic"
+
+
+const mqtt = require('mqtt')
+const client  = mqtt.connect('mqtt://broker.hivemq.com:1883')
+
+
+client.on('connect', function () {
+  client.subscribe(topic, function (err) {
+    if (!err) {
+      client.publish(topic, 'Hello mqtt cest pedro')
+    }
+  })
+})
+
+client.on('message', function (topic, message) {
+  // message is Buffer
+  console.log(topic, message.toString())
+
+  if (message.toString() == "end") {
+    frame_obj_mess = { // AT Request to be sent
+      type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
+      destination64: broadcast,
+      command: "D0",
+      commandParameter: [0x04],
+    };
+    xbeeAPI.builder.write(frame_obj_mess);
+  }
+  
+
+  //client.end()
+})
 
 
 // var storage = require("./storage")
@@ -14,7 +47,7 @@ require('dotenv').config()
 const SERIAL_PORT = process.env.SERIAL_PORT;
 
 var xbeeAPI = new xbee_api.XBeeAPI({
-  api_mode: 2
+  api_mode: 1
 });
 
 let serialport = new SerialPort(SERIAL_PORT, {
@@ -45,14 +78,6 @@ serialport.on("open", function () {
   };
   xbeeAPI.builder.write(frame_obj);
 
-  // frame_obj = { // AT Request to be sent
-  //   type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
-  //   destination64: broadcast,
-  //   command: "D0",
-  //   commandParameter: [0x04],
-  // };
-  // xbeeAPI.builder.write(frame_obj);
-
 });
 
 // All frames parsed by the XBee will be emitted here
@@ -60,12 +85,8 @@ serialport.on("open", function () {
 // storage.listSensors().then((sensors) => sensors.forEach((sensor) => console.log(sensor.data())))
 
 xbeeAPI.parser.on("data", function (frame) {
-  // console.log(frame)
-
   //on new device is joined, register it
 
-  //on packet received, dispatch event
-  //let dataReceived = String.fromCharCode.apply(null, frame.data);
   if (C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET === frame.type) {
     console.log("C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET");
     let dataReceived = String.fromCharCode.apply(null, frame.data);
@@ -80,56 +101,31 @@ xbeeAPI.parser.on("data", function (frame) {
 
   } else if (C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX === frame.type) {
 
-    frame_obj = { // AT Request to be sent
-      type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
-      destination16: clicker_mac,
-      command: "D0",
-      commandParameter: [buzzer_command_status],
-    };
-    frame_obj2 = { // AT Request to be sent
-      type: C.FRAME_TYPE.AT_COMMAND,
-      command: "D2",
-      commandParameter: [buzzer_command_status],
-    };
 
     console.log("ZIGBEE_IO_DATA_SAMPLE_RX")
-    var clicker_mac = frame.remote16
-    // console.log(frame)
+    var clicker_mac = frame.remote64
+    console.log("clicker_mac!!!!!!")
+    console.log(clicker_mac)
     if (frame.digitalSamples.DIO1 == 1) {
       buzzer_command_status = 0x05
       frame_obj = { // AT Request to be sent
         type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
-        destination16: clicker_mac,
+        destination64: clicker_mac,
         command: "D0",
         commandParameter: [0x05],
       };
-      frame_obj2 = { // AT Request to be sent
-        type: C.FRAME_TYPE.AT_COMMAND,
-        command: "D2",
-        commandParameter: [0x05],
-      };
-    // } else  {
-    //   console.log("ELSE!!!!!!")
-    //   frame_obj = { // AT Request to be sent
-    //     type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
-    //     destination16: clicker_mac,
-    //     command: "D0",
-    //     commandParameter: [0x04],
-    //   };
-    //   frame_obj2 = { // AT Request to be sent
-    //     type: C.FRAME_TYPE.AT_COMMAND,
-    //     command: "D2",
-    //     commandParameter: [0x04],
-    //   };
-    }
+      
+      // publish mac of the buzz man on mqtt
+      client.publish("player/action", clicker_mac)
+          
+    
     xbeeAPI.builder.write(frame_obj);
-    xbeeAPI.builder.write(frame_obj2);
 
-    // storage.registerSample(frame.remote64,frame.analogSamples.AD0 )
-
+    }
+    
   } else if (C.FRAME_TYPE.REMOTE_COMMAND_RESPONSE === frame.type) {
-    // console.log("REMOTE_COMMAND_RESPONSE :")
-    // console.log(frame)
+    console.log("REMOTE_COMMAND_RESPONSE :")
+    console.log(frame)
     // let dataReceived = String.fromCharCode.apply(null, frame.commandData);
     // console.log(dataReceived)
   } else {
@@ -141,3 +137,7 @@ xbeeAPI.parser.on("data", function (frame) {
   }
 
 });
+
+
+
+
