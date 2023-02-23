@@ -6,10 +6,7 @@ var mac_buzzer1_16 = "fd40"
 var mac_buzzer2_16 = "5ff7"
 var buzzer_command_status = 0x04
 var broadcast = "FFFFFFFFFFFFFFFF"
-var num_player = 0
 var clicker_mac = broadcast
-
-var names = ["pedro", "thomas", "damien", "matteo"]
 
 
 
@@ -49,13 +46,13 @@ client.on('message', function (topic, message) {
 
       // First Clicker ON
       buzzer_command_status = 0x05
-      frame_obj = {
+      frame_obj_blink = {
         type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
         destination64: clicker_mac,
         command: "D0",
         commandParameter: [0x05],
       };
-      xbeeAPI.builder.write(frame_obj);
+      xbeeAPI.builder.write(frame_obj_blink);
 
       // MQTT message is true
     } else {
@@ -164,8 +161,7 @@ xbeeAPI.parser.on("data", function (frame) {
 
     // publish mac of the buzz man on mqtt
     var clicker_mac = frame.remote64 
-    client.publish("player/login", clicker_mac + ',' + names[num_player]); 
-    num_player = (num_player + 1)%4;
+    client.publish("player/login", clicker_mac + ',' + frame.nodeIdentifier); 
 
   } else if (C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX === frame.type) {
 
