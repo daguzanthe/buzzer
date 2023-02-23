@@ -1,10 +1,8 @@
 var SerialPort = require('serialport');
 var xbee_api = require('xbee-api');
 var C = xbee_api.constants;
-var mac_buzzer_64 = "0013a20041c34b12"
-var mac_buzzer1_16 = "fd40"
-var mac_buzzer2_16 = "5ff7"
-var buzzer_command_status = 0x04
+var buzzer_command_off = 0x04
+var buzzer_command_on = 0x05
 var broadcast = "FFFFFFFFFFFFFFFF"
 var clicker_mac = broadcast
 
@@ -35,7 +33,7 @@ client.on('message', function (topic, message) {
     type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
     destination64: broadcast,
     command: "D0",
-    commandParameter: [0x04],
+    commandParameter: [buzzer_command_off],
   };
 
   // MQTT message is  a MAC adress or true
@@ -45,12 +43,11 @@ client.on('message', function (topic, message) {
       clicker_mac = message.toString()
 
       // First Clicker ON
-      buzzer_command_status = 0x05
       frame_obj_blink = {
         type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
         destination64: clicker_mac,
         command: "D0",
-        commandParameter: [0x05],
+        commandParameter: [buzzer_command_on],
       };
       xbeeAPI.builder.write(frame_obj_blink);
 
@@ -63,7 +60,7 @@ client.on('message', function (topic, message) {
           type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
           destination64: clicker_mac, 
           command: "D0",
-          commandParameter: [0x05],
+          commandParameter: [buzzer_command_on],
         };
         xbeeAPI.builder.write(frame_obj_blink);
 
@@ -71,7 +68,7 @@ client.on('message', function (topic, message) {
           type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
           destination64: clicker_mac, 
           command: "D0",
-          commandParameter: [0x04],
+          commandParameter: [buzzer_command_off],
         };
         xbeeAPI.builder.write(frame_obj_blink);
 
@@ -83,7 +80,7 @@ client.on('message', function (topic, message) {
         type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
         destination64: broadcast,
         command: "D0",
-        commandParameter: [0x04],
+        commandParameter: [buzzer_command_off],
       };
       xbeeAPI.builder.write(frame_obj_blink);
     }
@@ -91,12 +88,12 @@ client.on('message', function (topic, message) {
     // MQTT message is false
   } else {
     // Switch all off
-    buzzer_command_status = 0x04
+    buzzer_command_status = buzzer_command_off
     frame_obj = {
       type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
       destination64: broadcast,
       command: "D0",
-      commandParameter: [0x04],
+      commandParameter: [buzzer_command_off],
     };
 
     xbeeAPI.builder.write(frame_obj);
